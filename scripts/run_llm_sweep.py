@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Controlled GPT-2-style QJL m sweep; writes one JSON object per configuration."""
 from __future__ import annotations
-import argparse, csv, json, math, subprocess, time
+import argparse, csv, json, math, subprocess, time, urllib.request
 from pathlib import Path
 import sys
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -25,15 +25,19 @@ def main():
     if a.include_extremes: a.ratios=[.25]+a.ratios+[8]
     try:
         import torch
-        from datasets import load_dataset
+        import pandas as pd
         from transformers import AutoModelForCausalLM, AutoTokenizer
         from qjlstudy.torch_quant import FastResidualQJLCache
     except Exception as e:
         raise SystemExit(f'experiment dependencies unavailable: {e}')
     device=torch.device('mps' if torch.backends.mps.is_available() else 'cpu')
-    # Namespace is explicit because datasets 5.x no longer resolves the legacy
-    # short name reliably; content/config remain WikiText-2 raw test.
-    text='\n\n'.join(load_dataset('Salesforce/wikitext','wikitext-2-raw-v1',split='test')['text'])
+    # Direct immutable-file route avoids a datasets 5.x resolver hang observed
+    # on this host. The file is the official WikiText-2 raw test parquet shard.
+    data_path=Path('data/wikitext-2-raw-v1-test.parquet')
+    if not data_path.exists():
+        data_path.parent.mkdir(parents=True,exist_ok=True)
+        urllib.request.urlretrieve('https://huggingface.co/datasets/Salesforce/wikitext/resolve/main/wikitext-2-raw-v1/test-00000-of-00001.parquet',data_path)
+    text='\n\n'.join(pd.read_parquet(data_path)['text'].fillna(''))
     a.out.parent.mkdir(parents=True, exist_ok=True)
     def ppl(model,tok):
         ids=tok(text,return_tensors='pt').input_ids.to(device); n=min(a.tokens,ids.shape[1]-1); losses=[]; t=time.perf_counter()
