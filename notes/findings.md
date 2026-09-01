@@ -12,3 +12,21 @@
 
 These are replicated empirical findings for one model and one dataset slice,
 not claims of novelty or broad model generality.
+
+## Phase 2 findings that survived the fixed-budget controls
+
+- The conditional `m` response is smooth and precision-dependent on GPT-2. In
+  the fine sweep, the smallest tested point closing 90% of the observed
+  `m=d -> 4d` PPL gain is `2.5d` at 4/2 bits and `3d` at 3/2 bits.
+- The apparent benefit does not yield a useful fixed-storage allocation rule in
+  the tested framework. Across scalar allocations up to 8-bit keys/5-bit
+  values, every point on the measured PPL Pareto frontier through the best
+  tested result is MSE-only (`m=0`).
+- A finite-sample QJL residual correction can hurt. Relative to MSE-only,
+  `m=d` raises PPL from 39.91 to 45.16 at 4/2 bits and from 57.00 to 92.29 at
+  3/2 bits while also using 12 extra bytes/token. Raising `m` reduces this
+  estimator-induced attention divergence, but spending the storage on scalar
+  precision is more effective in these tests.
+
+The fixed-budget finding is a falsification of the candidate paper hypothesis,
+not evidence that QJL is universally inferior across models or implementations.

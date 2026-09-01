@@ -58,3 +58,50 @@
   storage scale linearly in theory; optimized incremental CUDA timing remains.
 - Verdict: Outcome C, strong signal, with the larger-model study justified only
   as the next controlled gate.
+
+## 2026-09-01 — Phase 2 equal-budget falsification
+
+- Hypothesis: at a fixed total K+V byte budget, spending additional bytes on
+  QJL signs can outperform spending those bytes on scalar key/value precision.
+- Exact setup: GPT-2/WikiText-2 first 512 tokens, five paired QJL seeds, scalar
+  key bits 2--5, value bits 1--4, `m/d in {0, 0.5, 1, 1.5, 2, 3, 4}` and exact
+  packed storage including metadata. `m=0` is an explicit MSE-only control: the
+  rotated scalar key approximation is used without a QJL residual correction.
+  Raw records are `phase2_equal_budget*.jsonl` and `phase2_mse_only.jsonl`.
+- Result: at the 60-byte exact match, 4/2-bit `m=d` scored 45.16 +/- 1.63 PPL
+  versus 54.43 +/- 1.94 for 3/2-bit `m=2d`. At 68 bytes, 5/2-bit `m=d` scored
+  35.43 +/- 0.79 versus 37.84 +/- 0.53 for 4/2-bit `m=2d`. More scalar key
+  precision beat the oversized-QJL allocation in both planned comparisons.
+- Stronger control: 4/2-bit MSE-only scored 39.91 PPL at 48 bytes, while
+  4/2-bit `m=d` scored 45.16 at 60 bytes. At 3/2 bits, MSE-only scored 57.00 at
+  40 bytes while `m=d` scored 92.29 at 52 bytes. Thus a noisy QJL correction
+  can be worse than no residual correction at all.
+- Confounder found: the original scalar sweep stopped at 5/4 bits, making
+  5/4-bit `m=2d` and `m=3d` appear on the high-budget frontier only because no
+  higher-scalar alternatives existed. A preregistered deterministic extension
+  tested 13 MSE-only allocations up to 8-bit keys and 5-bit values. The entire
+  tested PPL frontier through 88 bytes became MSE-only: 6/4-bit MSE-only scored
+  31.29 at 80 bytes, beating 5/4-bit `m=2d` at 31.64 and 92 bytes; 6/5-bit
+  MSE-only scored 30.90 at 88 bytes.
+- Interpretation: increasing `m` does reduce the variance and harm of the QJL
+  estimator conditional on using QJL, but it is not a competitive first use of
+  the tested cache budget. This satisfies the preregistered Verdict A stop gate.
+- Next: finish mechanism summaries and the primary-source novelty audit, then
+  render the decision document. Cross-model/data compute is stopped unless a
+  later question is explicitly reformulated around a non-QJL baseline.
+
+## 2026-09-01 — Phase 2 fine measurement sweep
+
+- Hypothesis: if the conditional QJL effect is structured rather than noise,
+  the useful point should shift under more aggressive scalar key quantization.
+- Exact setup: five paired seeds at `m/d={1,1.25,1.5,1.75,2,2.5,3,4}` for 4/2
+  and 3/2 bits, otherwise identical to the 512-token confirmatory setup. Raw
+  records are `results/raw/phase2_fine_m.jsonl`.
+- Result: for 4/2 bits, the smallest tested `m` achieving 90% of the observed
+  `m=d` to `4d` PPL gain was `2.5d`; marginal gain fell from 1.20 PPL/added byte
+  over `1d -> 1.25d` to 0.026 over `2.5d -> 3d`. For 3/2 bits, the 90% point
+  shifted to `3d`, and gains remained larger throughout the range.
+- Interpretation: the severity-dependent crossover is real within GPT-2, but
+  the MSE-only fixed-budget controls show it characterizes how many measurements
+  are needed to make QJL non-harmful, not an allocation rule that improves the
+  quality-memory frontier.
