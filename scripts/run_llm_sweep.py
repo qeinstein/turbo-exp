@@ -56,9 +56,10 @@ def main():
             Q=q.view(shape).transpose(1,2); K=k.view(shape).transpose(1,2); V=v.view(shape).transpose(1,2); mask=torch.triu(torch.full((s,s),float('-inf'),device=device),1)
             out=[]
             for h,c in enumerate(caches):
-                c.encode(K[0,h],V[0,h]); approx=c.scores(Q[0,h]); fp=Q[0,h]@K[0,h].T
-                residual_true=Q[0,h] @ (K[0,h] - (c.Knorm.unsqueeze(1) * (c.K @ c.rotation))).T
-                residual_est=approx - (Q[0,h] @ c.rotation.T @ c.K.T) * c.Knorm
+                qh,kh=Q[0,h].float(),K[0,h].float()
+                c.encode(K[0,h],V[0,h]); approx=c.scores(qh); fp=qh@kh.T
+                residual_true=qh @ (kh - (c.Knorm.unsqueeze(1) * (c.K @ c.rotation))).T
+                residual_est=approx - (qh @ c.rotation.T @ c.K.T) * c.Knorm
                 fp_w=torch.softmax((fp+mask)/math.sqrt(d),dim=1)
                 w=torch.softmax((approx+mask)/math.sqrt(d),dim=1)
                 valid=torch.ones((s,s),device=device,dtype=torch.bool).tril()
@@ -70,7 +71,7 @@ def main():
             z=attn.c_proj(z.to(hidden_states.dtype)); return attn.resid_dropout(z),None
         attn.forward=forward
     for name in a.models:
-      tok=AutoTokenizer.from_pretrained(name); ids=tok(text,return_tensors='pt').input_ids[:,:a.tokens+1].to(device)
+      tok=AutoTokenizer.from_pretrained(name); ids=tok(text,return_tensors='pt',truncation=True,max_length=a.tokens+1).input_ids.to(device)
       base=AutoModelForCausalLM.from_pretrained(name,dtype=model_dtype,attn_implementation='eager').to(device).eval(); fp,fpsec=ppl(base,ids); del base
       for conf in a.configs:
        kb,vb=map(int,conf.split(','))
