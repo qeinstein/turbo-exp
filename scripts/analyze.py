@@ -47,5 +47,24 @@ def main():
         rs=[r for r in rows if (r['model'],r['key_bits'],r['value_bits'])==label]
         ax.scatter([r['m_over_d'] for r in rs],[r['perplexity'] for r in rs],alpha=.75,label=f'{label[0]} {label[1]}/{label[2]}b')
     ax.set_xscale('log',base=2); ax.set_xlabel('m/d'); ax.set_ylabel('Individual-seed perplexity'); ax.legend(); fig.tight_layout(); fig.savefig(PLOTS/'seed_variance.png',dpi=160); plt.close(fig)
+    length_path=Path('results/raw/llm_length_check.jsonl')
+    if length_path.exists():
+        length_rows=[json.loads(x) for x in length_path.read_text().splitlines() if x.strip()]; length_summary=[]
+        for ratio in sorted(set(r['m_over_d'] for r in length_rows)):
+            rs=[r for r in length_rows if r['m_over_d']==ratio]; rec={'m_over_d':ratio,'m':rs[0]['m'],'n_seeds':len(rs),'tokens':rs[0]['tokens'],'fp16_perplexity':rs[0]['fp16_perplexity']}
+            for metric in ('perplexity','ppl_delta_fp','attention_logit_rmse','qjl_residual_rmse','attention_kl_fp_to_quantized','runtime_s'):
+                vals=np.array([r[metric] for r in rs]); rec[metric+'_mean']=float(vals.mean()); rec[metric+'_std']=float(vals.std(ddof=1))
+            length_summary.append(rec)
+        (OUT/'length_check_summary.json').write_text(json.dumps(length_summary,indent=2)+'\n')
+        cols=list(length_summary[0]); (OUT/'length_check_summary.csv').write_text(','.join(cols)+'\n'+'\n'.join(','.join(str(r[c]) for c in cols) for r in length_summary)+'\n')
+        fig,ax=plt.subplots(); ax.errorbar([r['m_over_d'] for r in length_summary],[r['perplexity_mean'] for r in length_summary],yerr=[r['perplexity_std'] for r in length_summary],marker='o'); ax.axhline(length_summary[0]['fp16_perplexity'],color='black',linestyle='--',label='FP16'); ax.set_xlabel('m/d'); ax.set_ylabel('Perplexity (2048 tokens)'); ax.legend(); fig.tight_layout(); fig.savefig(PLOTS/'length_check.png',dpi=160); plt.close(fig)
+    runtime_path=Path('results/raw/cache_runtime.json')
+    if runtime_path.exists():
+        runtime_rows=json.loads(runtime_path.read_text()); runtime_summary=[]
+        for ratio in sorted(set(r['m_over_d'] for r in runtime_rows)):
+            rs=[r for r in runtime_rows if r['m_over_d']==ratio]; vals=np.array([r['runtime_s_median'] for r in rs]); runtime_summary.append({'m_over_d':ratio,'m':rs[0]['m'],'n_seeds':len(rs),'tokens':rs[0]['tokens'],'runtime_s_median_across_seeds':float(np.median(vals)),'runtime_s_seed_std':float(vals.std(ddof=1)),'measurement_bytes_per_key':rs[0]['measurement_bytes_per_key'],'shared_projection_bytes':rs[0]['shared_projection_bytes']})
+        (OUT/'runtime_summary.json').write_text(json.dumps(runtime_summary,indent=2)+'\n')
+        cols=list(runtime_summary[0]); (OUT/'runtime_summary.csv').write_text(','.join(cols)+'\n'+'\n'.join(','.join(str(r[c]) for c in cols) for r in runtime_summary)+'\n')
+        fig,ax=plt.subplots(); ax.errorbar([r['m_over_d'] for r in runtime_summary],[1000*r['runtime_s_median_across_seeds'] for r in runtime_summary],yerr=[1000*r['runtime_s_seed_std'] for r in runtime_summary],marker='o'); ax.set_xlabel('m/d'); ax.set_ylabel('Cache-operation runtime (ms)'); fig.tight_layout(); fig.savefig(PLOTS/'runtime_vs_m.png',dpi=160); plt.close(fig)
     print(f'wrote {len(out)} summary groups to {OUT}')
 if __name__=='__main__': main()

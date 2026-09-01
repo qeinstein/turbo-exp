@@ -33,3 +33,28 @@
   result, so there are no downstream conclusions yet.
 - Next: resolve/profile GPT-2 model loading, run a one-setting smoke test that
   produces JSONL, then start the registered five-seed two-bit-width sweep.
+
+## 2026-09-01 — controlled GPT-2 sweeps complete
+
+- Hypothesis: `m=2d` gives a seed-robust improvement over `m=d`, and the
+  downstream response is not fully described by monotonic estimator scaling.
+- Exact main setup: GPT-2 FP16 on MPS, WikiText-2 raw test first 512 tokens,
+  context limit 1024, QJL seeds 11/23/37/53/71, `m/d={0.5,1,2,4}`. Rotations,
+  scalar quantization, values, model weights, and text are fixed. Raw records:
+  `results/raw/llm_sweep.jsonl`.
+- 4/2-bit result: FP16 30.93 PPL; `m=d` 45.16 +/- 1.63; `m=2d` 37.84 +/- 0.53;
+  `m=4d` 35.95 +/- 0.84. All paired seeds improved from `d` to `2d`.
+- 3/2-bit confirmation: `m=d` 92.29 +/- 4.77; `m=2d` 54.43 +/- 1.94;
+  `m=4d` 40.39 +/- 1.20. All paired seeds improved.
+- Dataset-size check: at 2048 tokens, FP16 22.77; `m=d` 42.70 +/- 0.66;
+  `m=2d` 30.57 +/- 0.24. This is close to the sibling repository's preliminary
+  pattern and rules out a 512-token-only artifact for the main comparison.
+- Interpretation: estimator/logit error follows the expected scaling, while
+  4/2-bit downstream PPL saturates sharply after `2d`; more aggressive 3/2-bit
+  quantization benefits materially through `4d`. This passes the initial gate
+  but does not prove novelty or beat alternative uses of the same storage.
+- Runtime confounder: synchronized MPS cache microbenchmarks are dominated by
+  small-kernel overhead and are not monotonic. Compute and shared-projection
+  storage scale linearly in theory; optimized incremental CUDA timing remains.
+- Verdict: Outcome C, strong signal, with the larger-model study justified only
+  as the next controlled gate.

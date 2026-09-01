@@ -1,0 +1,19 @@
+{
+  "captured_from_git_commit": "5dcf858c7f50dc680fa4184726dcbee82efe06ce",
+  "python": "3.14.7",
+  "platform": "macOS-26.5.2-arm64-arm-64bit-Mach-O",
+  "model": "gpt2",
+  "model_revision": "607a30d783dfa663caf39e06633721c8d4cfcd7e",
+  "model_weight_sha256": "248dfc3911869ec493c76e65bf2fcf7f615828b0254c12b473182f0f81d3a707",
+  "dataset": "Salesforce/wikitext:wikitext-2-raw-v1:test",
+  "dataset_url": "https://huggingface.co/datasets/Salesforce/wikitext/resolve/main/wikitext-2-raw-v1/test-00000-of-00001.parquet",
+  "dataset_sha256": "5f1bea067869d04849c0f975a2b29c4ff47d867f484f5010ea5e861eab246d91",
+  "packages": {
+    "torch": "2.15.0.dev20260831",
+    "transformers": "5.16.1",
+    "numpy": "2.5.2",
+    "scipy": "1.18.1",
+    "pandas": "3.0.5",
+    "matplotlib": "3.11.1"
+  }
+}

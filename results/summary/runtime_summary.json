@@ -1,0 +1,42 @@
+[
+  {
+    "m_over_d": 0.5,
+    "m": 32,
+    "n_seeds": 5,
+    "tokens": 512,
+    "runtime_s_median_across_seeds": 0.0006927290014573373,
+    "runtime_s_seed_std": 9.453660375385667e-06,
+    "measurement_bytes_per_key": 4,
+    "shared_projection_bytes": 8192
+  },
+  {
+    "m_over_d": 1,
+    "m": 64,
+    "n_seeds": 5,
+    "tokens": 512,
+    "runtime_s_median_across_seeds": 0.0008484165045956615,
+    "runtime_s_seed_std": 0.00011844502539910756,
+    "measurement_bytes_per_key": 8,
+    "shared_projection_bytes": 16384
+  },
+  {
+    "m_over_d": 2,
+    "m": 128,
+    "n_seeds": 5,
+    "tokens": 512,
+    "runtime_s_median_across_seeds": 0.0007085204997565597,
+    "runtime_s_seed_std": 0.00012297296226098883,
+    "measurement_bytes_per_key": 16,
+    "shared_projection_bytes": 32768
+  },
+  {
+    "m_over_d": 4,
+    "m": 256,
+    "n_seeds": 5,
+    "tokens": 512,
+    "runtime_s_median_across_seeds": 0.0007453335019818041,
+    "runtime_s_seed_std": 0.00011575339845330827,
+    "measurement_bytes_per_key": 32,
+    "shared_projection_bytes": 65536
+  }
+]

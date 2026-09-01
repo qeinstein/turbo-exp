@@ -1,4 +1,33 @@
-# Initial QJL measurement-budget study
+#!/usr/bin/env python3
+"""Render INITIAL_STUDY.md from machine-readable summaries and raw runs."""
+from __future__ import annotations
+import json, math
+from pathlib import Path
+import numpy as np
+
+ROOT=Path(__file__).resolve().parents[1]
+summary=json.loads((ROOT/'results/summary/summary.json').read_text())
+length=json.loads((ROOT/'results/summary/length_check_summary.json').read_text())
+runtime=json.loads((ROOT/'results/summary/runtime_summary.json').read_text())
+raw=[json.loads(x) for x in (ROOT/'results/raw/llm_sweep.jsonl').read_text().splitlines()]
+
+def row(bits,ratio): return next(r for r in summary if r['key_bits']==bits and r['m_over_d']==ratio)
+def paired(bits):
+    a={r['qjl_seed']:r['perplexity'] for r in raw if r['key_bits']==bits and r['m_over_d']==1}
+    b={r['qjl_seed']:r['perplexity'] for r in raw if r['key_bits']==bits and r['m_over_d']==2}
+    dif=np.array([a[s]-b[s] for s in sorted(a)]); half=2.776*float(dif.std(ddof=1))/math.sqrt(len(dif))
+    return float(dif.mean()),float(dif.min()),float(dif.max()),half
+
+def table(bits):
+    lines=['| m/d | m | PPL mean +/- SD | PPL gap vs FP16 | logit RMSE | attention KL | QJL bytes/key | total key bytes | PPL gain / added QJL byte |','|---:|---:|---:|---:|---:|---:|---:|---:|---:|']
+    for ratio in [.5,1,2,4]:
+        r=row(bits,ratio); marginal='--' if r['perplexity_gain_per_added_qjl_byte']=='' else f"{r['perplexity_gain_per_added_qjl_byte']:.3f}"
+        lines.append(f"| {ratio:g} | {r['m']} | {r['perplexity_mean']:.2f} +/- {r['perplexity_std']:.2f} | {r['ppl_delta_fp_mean']:.2f} | {r['attention_logit_rmse_mean']:.3f} | {r['attention_kl_fp_to_quantized_mean']:.3f} | {r['qjl_sketch_bytes_per_key_mean']:.0f} | {r['key_storage_bytes_per_key_mean']:.0f} | {marginal} |")
+    return '\n'.join(lines)
+
+r41,r42=row(4,1),row(4,2); r31,r32=row(3,1),row(3,2); p4=paired(4); p3=paired(3); l1,l2=length
+closure4=100*(r41['ppl_delta_fp_mean']-r42['ppl_delta_fp_mean'])/r41['ppl_delta_fp_mean']; closure_len=100*(l1['ppl_delta_fp_mean']-l2['ppl_delta_fp_mean'])/l1['ppl_delta_fp_mean']
+text=f'''# Initial QJL measurement-budget study
 
 This report is generated from `results/raw/*.json*` by `scripts/render_initial_study.py`. Immutable model/data hashes and package versions are in `results/raw/environment.json`.
 
@@ -18,39 +47,29 @@ The dependency-light check used 64 random query/key pairs and 80 projection seed
 
 ## Main results: GPT-2, key/value 4/2 bits
 
-Unquantized FP16 perplexity was 30.93.
+Unquantized FP16 perplexity was {r41['perplexity_mean']-r41['ppl_delta_fp_mean']:.2f}.
 
-| m/d | m | PPL mean +/- SD | PPL gap vs FP16 | logit RMSE | attention KL | QJL bytes/key | total key bytes | PPL gain / added QJL byte |
-|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| 0.5 | 32 | 61.06 +/- 1.89 | 30.14 | 8.575 | 0.350 | 8 | 36 | -- |
-| 1 | 64 | 45.16 +/- 1.63 | 14.24 | 6.068 | 0.179 | 12 | 40 | 3.975 |
-| 2 | 128 | 37.84 +/- 0.53 | 6.92 | 4.321 | 0.090 | 20 | 48 | 0.915 |
-| 4 | 256 | 35.95 +/- 0.84 | 5.03 | 3.037 | 0.044 | 36 | 64 | 0.118 |
+{table(4)}
 
-The paired `m=d -> 2d` PPL improvement was 7.32 points (95% paired t interval `4.90...9.74`); every seed improved, with individual improvements from 4.39 to 9.39. `m=2d` closed 51.4% of the `m=d` PPL gap. Logit RMSE fell 28.8% and attention KL fell 49.6%.
+The paired `m=d -> 2d` PPL improvement was {p4[0]:.2f} points (95% paired t interval `{p4[0]-p4[3]:.2f}...{p4[0]+p4[3]:.2f}`); every seed improved, with individual improvements from {p4[1]:.2f} to {p4[2]:.2f}. `m=2d` closed {closure4:.1f}% of the `m=d` PPL gap. Logit RMSE fell {100*(1-r42['attention_logit_rmse_mean']/r41['attention_logit_rmse_mean']):.1f}% and attention KL fell {100*(1-r42['attention_kl_fp_to_quantized_mean']/r41['attention_kl_fp_to_quantized_mean']):.1f}%.
 
-The downstream response is nonlinear. `d -> 2d` gains 0.915 PPL points per added QJL byte, while `2d -> 4d` gains only 0.118. Logit RMSE continues its near-`1/sqrt(m)` decline, but PPL largely saturates after `2d` in this 4/2-bit setting.
+The downstream response is nonlinear. `d -> 2d` gains {r42['perplexity_gain_per_added_qjl_byte']:.3f} PPL points per added QJL byte, while `2d -> 4d` gains only {row(4,4)['perplexity_gain_per_added_qjl_byte']:.3f}. Logit RMSE continues its near-`1/sqrt(m)` decline, but PPL largely saturates after `2d` in this 4/2-bit setting.
 
 ## Second confirmation: GPT-2, key/value 3/2 bits
 
-| m/d | m | PPL mean +/- SD | PPL gap vs FP16 | logit RMSE | attention KL | QJL bytes/key | total key bytes | PPL gain / added QJL byte |
-|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| 0.5 | 32 | 222.25 +/- 23.81 | 191.33 | 15.996 | 0.995 | 8 | 28 | -- |
-| 1 | 64 | 92.29 +/- 4.77 | 61.36 | 11.326 | 0.539 | 12 | 32 | 32.491 |
-| 2 | 128 | 54.43 +/- 1.94 | 23.51 | 8.056 | 0.280 | 20 | 40 | 4.732 |
-| 4 | 256 | 40.39 +/- 1.20 | 9.46 | 5.640 | 0.137 | 36 | 56 | 0.878 |
+{table(3)}
 
-The paired `m=d -> 2d` improvement was 37.85 PPL points (95% paired t interval `31.33...44.38`), again positive for every seed. Unlike 4/2 bits, `2d -> 4d` still yields a material 14.04-point gain. The useful measurement budget therefore changes with quantization aggressiveness in this experiment.
+The paired `m=d -> 2d` improvement was {p3[0]:.2f} PPL points (95% paired t interval `{p3[0]-p3[3]:.2f}...{p3[0]+p3[3]:.2f}`), again positive for every seed. Unlike 4/2 bits, `2d -> 4d` still yields a material {row(3,4)['perplexity_gain_from_previous']:.2f}-point gain. The useful measurement budget therefore changes with quantization aggressiveness in this experiment.
 
 ## Dataset-length check
 
-At 2048 tokens, FP16 PPL was 22.77; `m=d` was 42.70 +/- 0.66, and `m=2d` was 30.57 +/- 0.24. All five seeds improved and `2d` closed 60.9% of the gap. This closely reproduces the pattern and approximate scale of the sibling repository's preliminary single-seed result, so the 512-token result is not merely a tiny-slice artifact.
+At 2048 tokens, FP16 PPL was {l1['fp16_perplexity']:.2f}; `m=d` was {l1['perplexity_mean']:.2f} +/- {l1['perplexity_std']:.2f}, and `m=2d` was {l2['perplexity_mean']:.2f} +/- {l2['perplexity_std']:.2f}. All five seeds improved and `2d` closed {closure_len:.1f}% of the gap. This closely reproduces the pattern and approximate scale of the sibling repository's preliminary single-seed result, so the 512-token result is not merely a tiny-slice artifact.
 
 ## Storage and runtime tradeoff
 
 At `d=64`, `m=d -> 2d` adds 8 packed sign bytes per key. For 4/2 bits, total key storage rises from 40 to 48 bytes (+20%); combined key/value storage rises from 60 to 68 bytes (+13.3%). The shared FP32 projection per layer/head doubles from 16 KiB to 32 KiB; it is fixed overhead, not per cached token, and can be regenerated from its seed.
 
-The synchronized MPS cache-operation microbenchmark measured seed-median runtimes of 0.848 ms at `d` and 0.709 ms at `2d` for 512 vectors. These small kernels are launch-overhead dominated and not monotonic, so they do not establish a speed advantage or a reliable cost slope. Arithmetic and shared-projection memory scale linearly with `m`; CUDA and incremental-decoding benchmarks are still required.
+The synchronized MPS cache-operation microbenchmark measured seed-median runtimes of {runtime[1]['runtime_s_median_across_seeds']*1000:.3f} ms at `d` and {runtime[2]['runtime_s_median_across_seeds']*1000:.3f} ms at `2d` for 512 vectors. These small kernels are launch-overhead dominated and not monotonic, so they do not establish a speed advantage or a reliable cost slope. Arithmetic and shared-projection memory scale linearly with `m`; CUDA and incremental-decoding benchmarks are still required.
 
 ## Plots
 
@@ -88,10 +107,12 @@ The synchronized MPS cache-operation microbenchmark measured seed-median runtime
 ## Initial Research Verdict
 
 - Original observation replicated: **yes**. `m=2d` beats `m=d` for every tested seed at both 512 and 2048 tokens.
-- Effect size: **7.32 PPL points** at 512 tokens and **12.13 points** at 2048 tokens for 4/2 bits.
+- Effect size: **{p4[0]:.2f} PPL points** at 512 tokens and **{l1['perplexity_mean']-l2['perplexity_mean']:.2f} points** at 2048 tokens for 4/2 bits.
 - Seed variability: the 512-token mean gain is far larger than within-setting SD; no anomalous seed drives it.
 - Attention behavior: logit RMSE and attention KL both improve in the expected direction for every increase in `m`.
 - Storage/compute cost: `d -> 2d` adds 8 bytes/key at `d=64` (+13.3% combined KV storage for 4/2 bits); arithmetic and projection memory scale linearly, while measured small-kernel MPS latency was inconclusive.
 - Second confirmation: **survived** at 3/2 bits, with a larger absolute PPL response and less saturation at `2d`.
 - Classification: **Outcome C — Strong signal.** The estimator improvement itself is the expected more-bits effect, but downstream PPL saturation at 4/2 bits and the bit-width-dependent useful `m` are nontrivial operating-point signals.
 - Larger-model experiments justified: **yes, as a controlled next gate**, not as evidence of novelty or a discovery.
+'''
+(ROOT/'INITIAL_STUDY.md').write_text(text)
