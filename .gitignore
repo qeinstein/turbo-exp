@@ -5,7 +5,6 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 data/
-results/plots/
 results/raw/smoke*.jsonl
 *.safetensors
 *.bin
