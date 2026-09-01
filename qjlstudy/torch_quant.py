@@ -60,7 +60,7 @@ class FastResidualQJLCache:
         self.S = torch.randn(m, d, generator=g, device=device)
         self.key_cb = torch.tensor(_codebook_cpu(d, key_bits - 1), device=device)
         self.val_cb = torch.tensor(_codebook_cpu(d, val_bits), device=device)
-        self.m, self.d = m, d
+        self.m, self.d, self.key_bits = m, d, key_bits
 
     def encode(self, keys: torch.Tensor, values: torch.Tensor) -> None:
         kn = torch.linalg.norm(keys.float(), dim=1, keepdim=True)
@@ -85,4 +85,4 @@ class FastResidualQJLCache:
         return self.Vnorm.unsqueeze(1) * (self.V @ self.rotation)
 
     def key_storage_bytes(self) -> float:
-        return (self.d * 0 + self.m) / 8 + 4 + self.d * 0 + self.d * 0
+        return math.ceil(self.d * (self.key_bits - 1) / 8) + math.ceil(self.m / 8) + 8
