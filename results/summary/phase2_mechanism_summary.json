@@ -1,0 +1,38 @@
+[
+  {
+    "key_bits": 4,
+    "value_bits": 2,
+    "qjl_rmse_loglog_slope": -0.5015311975290565,
+    "logit_rmse_loglog_slope": -0.5015311974933591,
+    "pearson_ppl_vs_logit_rmse": 0.9656302703531221,
+    "pearson_ppl_vs_attention_kl": 0.9860730439734299,
+    "smallest_m_over_d_for_90pct_observed_gain": 2.5,
+    "mse_only_ppl": 39.90587026459418,
+    "m_equals_d_ppl": 45.16366154650314,
+    "m_equals_2d_ppl": 37.84419458622423,
+    "mse_only_attention_kl": 0.11325846029568412,
+    "m_equals_d_attention_kl": 0.17872992351670594,
+    "m_equals_2d_attention_kl": 0.09005946337064315,
+    "m_equals_d_residual_norm_mean": 2.9828139272414975,
+    "top3_m_equals_d_kl_layers": "[3, 2, 4]",
+    "top3_layers_fraction_of_layer_kl": 0.6617510082829149
+  },
+  {
+    "key_bits": 3,
+    "value_bits": 2,
+    "qjl_rmse_loglog_slope": -0.5028949632138459,
+    "logit_rmse_loglog_slope": -0.5028949621638276,
+    "pearson_ppl_vs_logit_rmse": 0.9816990476321535,
+    "pearson_ppl_vs_attention_kl": 0.9940778762913036,
+    "smallest_m_over_d_for_90pct_observed_gain": 3.0,
+    "mse_only_ppl": 56.9952966774873,
+    "m_equals_d_ppl": 92.28882193926306,
+    "m_equals_2d_ppl": 54.433973951566735,
+    "mse_only_attention_kl": 0.3386205112070052,
+    "m_equals_d_attention_kl": 0.5391454674316467,
+    "m_equals_2d_attention_kl": 0.28003345009702674,
+    "m_equals_d_residual_norm_mean": 5.539119231286976,
+    "top3_m_equals_d_kl_layers": "[3, 4, 2]",
+    "top3_layers_fraction_of_layer_kl": 0.6228990611319402
+  }
+]
