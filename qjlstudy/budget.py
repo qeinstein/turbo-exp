@@ -25,8 +25,8 @@ def storage_bytes(d: int, key_bits: int, value_bits: int, m: int) -> dict[str, i
 
 def enumerate_matched_configs(
     d: int,
-    key_bits=(2, 3, 4),
-    value_bits=(2, 3, 4),
+    key_bits=(2, 3, 4, 5),
+    value_bits=(1, 2, 3, 4),
     ratios=(0.5, 1, 1.5, 2, 3, 4),
 ) -> list[dict]:
     candidates = []

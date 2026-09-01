@@ -7,6 +7,9 @@ def test_known_exact_budget_match():
     assert standard["kv_bytes"] == oversized["kv_bytes"] == 60
     assert standard["key_bytes"] == 40
     assert standard["value_bytes"] == 20
+    more_key = storage_bytes(64, key_bits=5, value_bits=2, m=64)
+    oversized_at_68 = storage_bytes(64, key_bits=4, value_bits=2, m=128)
+    assert more_key["kv_bytes"] == oversized_at_68["kv_bytes"] == 68
 
 
 def test_enumerator_only_keeps_groups_with_real_allocation_tradeoffs():
