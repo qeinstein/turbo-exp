@@ -31,7 +31,9 @@ def main():
     except Exception as e:
         raise SystemExit(f'experiment dependencies unavailable: {e}')
     device=torch.device('mps' if torch.backends.mps.is_available() else 'cpu')
-    text='\n\n'.join(load_dataset('wikitext','wikitext-2-raw-v1',split='test')['text'])
+    # Namespace is explicit because datasets 5.x no longer resolves the legacy
+    # short name reliably; content/config remain WikiText-2 raw test.
+    text='\n\n'.join(load_dataset('Salesforce/wikitext','wikitext-2-raw-v1',split='test')['text'])
     a.out.parent.mkdir(parents=True, exist_ok=True)
     def ppl(model,tok):
         ids=tok(text,return_tensors='pt').input_ids.to(device); n=min(a.tokens,ids.shape[1]-1); losses=[]; t=time.perf_counter()
@@ -68,7 +70,7 @@ def main():
         for seed in a.qjl_seeds:
          model=AutoModelForCausalLM.from_pretrained(name).to(device).eval(); d=model.transformer.h[0].attn.head_dim; m=max(1,round(ratio*d)); errors=[]
          for l,block in enumerate(model.transformer.h): replace(block.attn,kb,vb,m,seed,errors)
-         pval,secs=ppl(model,tok); rec={'model':name,'dataset':'wikitext-2-raw-v1:test','tokens':a.tokens,'context_length':1024,'key_bits':kb,'value_bits':vb,'d':d,'m':m,'m_over_d':m/d,'qjl_seed':seed,'perplexity':pval,'ppl_delta_fp':pval-fp,'fp16_perplexity':fp,'fp16_runtime_s':fpsec,'runtime_s':secs,'attention_logit_mae':sum(errors[::4])/len(errors[::4]),'attention_logit_rmse':sum(errors[1::4])/len(errors[1::4]),'qjl_residual_rmse':sum(errors[2::4])/len(errors[2::4]),'attention_kl_fp_to_quantized':sum(errors[3::4])/len(errors[3::4]),'qjl_sketch_bytes_per_key':math.ceil(m/8)+4,'key_storage_bytes_per_key':math.ceil(d*(kb-1)/8)+math.ceil(m/8)+8,'value_storage_bytes_per_value':math.ceil(d*vb/8)+4,'git_commit':git_hash()}
+         pval,secs=ppl(model,tok); rec={'model':name,'dataset':'Salesforce/wikitext:wikitext-2-raw-v1:test','tokens':a.tokens,'context_length':1024,'key_bits':kb,'value_bits':vb,'d':d,'m':m,'m_over_d':m/d,'qjl_seed':seed,'perplexity':pval,'ppl_delta_fp':pval-fp,'fp16_perplexity':fp,'fp16_runtime_s':fpsec,'runtime_s':secs,'attention_logit_mae':sum(errors[::4])/len(errors[::4]),'attention_logit_rmse':sum(errors[1::4])/len(errors[1::4]),'qjl_residual_rmse':sum(errors[2::4])/len(errors[2::4]),'attention_kl_fp_to_quantized':sum(errors[3::4])/len(errors[3::4]),'qjl_sketch_bytes_per_key':math.ceil(m/8)+4,'key_storage_bytes_per_key':math.ceil(d*(kb-1)/8)+math.ceil(m/8)+8,'value_storage_bytes_per_value':math.ceil(d*vb/8)+4,'git_commit':git_hash()}
          with a.out.open('a') as f: f.write(json.dumps(rec)+'\n')
          print(json.dumps(rec))
 
