@@ -127,3 +127,24 @@
   it does not reverse the preregistered fixed-budget stop decision. Claims in
   the final report must distinguish the Gaussian primary sweep from this
   stronger post-gate implementation control.
+
+## 2026-09-01 — literature and public-code novelty audit
+
+- Hypothesis audited: a downstream benefit from `m>d`, or a useful adaptive
+  measurement-budget rule, is sufficiently unstudied to support a new paper.
+- Direct prior: the 2024 QJL paper defines arbitrary `m` and normalization by
+  `1/m`. Its public implementation (commit `648b364`) defaults to `m=2d` in
+  general layers and `m=4d` in the first 15 layers, and its distortion script
+  sweeps `m/d=0.5..4` with one repetition. Therefore the basic `m>d` idea is
+  already public and cannot be claimed as novel.
+- Strong post-TurboQuant overlap: arXiv:2605.08114 directly compares MSE-only
+  with MSE+QJL under fair bit budgets in synthetic attention and proposes the
+  same QJL-variance/softmax-amplification mechanism. UltraQuant and the current
+  vLLM TurboQuant path explicitly remove QJL in deployment-oriented designs.
+- Adjacent allocation prior: KVQuant, HIGGS, AQUA-KV, and JoLT already cover
+  sensitivity-aware, layerwise, residual, or jointly optimized byte allocation.
+- Interpretation: the only apparently open contribution here is a narrow
+  multi-seed downstream boundary-of-use study asking when QJL ever beats the
+  best scalar-only allocation. The current one-model negative evidence is not a
+  defensible standalone paper and does not justify scaling the original positive
+  hypothesis. Full source-by-source audit: `notes/literature_audit.md`.
