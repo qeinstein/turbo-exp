@@ -148,3 +148,19 @@
   best scalar-only allocation. The current one-model negative evidence is not a
   defensible standalone paper and does not justify scaling the original positive
   hypothesis. Full source-by-source audit: `notes/literature_audit.md`.
+
+## 2026-09-01 — Phase 2 stop decision
+
+- Decision: Verdict A — Stop. The conditional `m` response survives, including
+  with block-orthogonal projections, but QJL remains off the measured
+  quality-memory Pareto frontier and the positive `m>d` framing is not novel.
+- Stopped work: no valid OPT-125M result and no independent data-slice result
+  were produced. An attempted OPT setup/download was terminated after the
+  fixed-budget gate failed. These questions remain inconclusive, not negative.
+- Deliverable: `PHASE2_VALIDATION.md`, generated from machine-readable
+  summaries by `scripts/render_phase2_validation.py`. No
+  `RESEARCH_DIRECTION.md` was created because the verdict is neither C nor D.
+- Recommendation: do not spend larger-model compute on the original positive
+  hypothesis. A future revival should begin with one cross-architecture,
+  exact-budget comparison of official-style block-orthogonal residual QJL
+  against MSE-only, and stop again unless QJL enters the Pareto frontier.

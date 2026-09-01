@@ -27,3 +27,28 @@ generated from those raw records. See `notes/research_log.md` before treating
 any outcome as evidence.
 
 The completed initial verdict and limitations are in `INITIAL_STUDY.md`.
+
+## Phase 2 decision-grade validation
+
+The Phase 2 configs are immutable experiment specifications. Reproduce the
+allocation, fine-sweep, scalar-only, and projection-sensitivity runs with:
+
+```bash
+.venv/bin/python scripts/run_llm_sweep.py --models gpt2 --spec-file configs/phase2_equal_budget.json --qjl-seeds 11 23 37 53 71 --tokens 512 --stride 256 --study-id phase2-equal-budget-confirmatory --out results/raw/phase2_equal_budget.jsonl
+.venv/bin/python scripts/run_llm_sweep.py --models gpt2 --spec-file configs/phase2_equal_budget_extension.json --qjl-seeds 11 23 37 53 71 --tokens 512 --stride 256 --study-id phase2-equal-budget-extension-confirmatory --out results/raw/phase2_equal_budget_extension.jsonl
+.venv/bin/python scripts/run_llm_sweep.py --models gpt2 --spec-file configs/phase2_mse_only_extension.json --qjl-seeds 11 23 37 53 71 --tokens 512 --stride 256 --study-id phase2-mse-only-confirmatory --out results/raw/phase2_mse_only.jsonl
+.venv/bin/python scripts/run_llm_sweep.py --models gpt2 --spec-file configs/phase2_high_scalar_controls.json --qjl-seeds 11 --tokens 512 --stride 256 --study-id phase2-high-scalar-confirmatory --out results/raw/phase2_high_scalar.jsonl
+.venv/bin/python scripts/run_llm_sweep.py --models gpt2 --spec-file configs/phase2_fine_m.json --qjl-seeds 11 23 37 53 71 --tokens 512 --stride 256 --study-id phase2-fine-m-confirmatory --out results/raw/phase2_fine_m.jsonl
+.venv/bin/python scripts/run_llm_sweep.py --models gpt2 --spec-file configs/phase2_block_orthogonal_control.json --qjl-seeds 11 23 37 53 71 --tokens 512 --stride 256 --projection-mode block_orthogonal --study-id phase2-block-orthogonal-confirmatory --out results/raw/phase2_block_orthogonal.jsonl
+```
+
+The runner refuses duplicate records in an existing output. To regenerate all
+tables, plots, and the decision document solely from raw results:
+
+```bash
+.venv/bin/python scripts/analyze_phase2.py
+.venv/bin/python scripts/render_phase2_validation.py
+```
+
+The result is [PHASE2_VALIDATION.md](PHASE2_VALIDATION.md), with the complete
+primary-source audit in [notes/literature_audit.md](notes/literature_audit.md).
