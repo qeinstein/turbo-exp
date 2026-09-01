@@ -53,11 +53,11 @@ def _projection_seed(layer: int, head: int, qjl_seed: int) -> int:
 class FastResidualQJLCache:
     def __init__(self, d: int, key_bits: int, val_bits: int, layer: int, head: int,
                  m: int, qjl_seed: int, device: torch.device):
-        if m <= 0: raise ValueError("m must be positive")
+        if m < 0: raise ValueError("m must be non-negative")
         self.rotation = _rotation(d, _rotation_seed(layer, head), device)
         g = torch.Generator(device=device)
         g.manual_seed(_projection_seed(layer, head, qjl_seed))
-        self.S = torch.randn(m, d, generator=g, device=device)
+        self.S = torch.randn(m, d, generator=g, device=device) if m else None
         self.key_cb = torch.tensor(_codebook_cpu(d, key_bits - 1), device=device)
         self.val_cb = torch.tensor(_codebook_cpu(d, val_bits), device=device)
         self.m, self.d, self.key_bits = m, d, key_bits
@@ -69,7 +69,7 @@ class FastResidualQJLCache:
         self.K = self.key_cb[(kr.unsqueeze(-1) - self.key_cb).square().argmin(-1)]
         khat = kn * (self.K @ self.rotation)
         residual = keys.float() - khat
-        self.Rsign = torch.where(residual @ self.S.T >= 0, 1., -1.)
+        self.Rsign = torch.where(residual @ self.S.T >= 0, 1., -1.) if self.m else None
         self.Rnorm, self.Knorm = torch.linalg.norm(residual, dim=1), kn.squeeze(1)
         vn = torch.linalg.norm(values.float(), dim=1, keepdim=True)
         vr = values.float() / vn.clamp_min(1e-12) @ self.rotation.T
@@ -78,6 +78,8 @@ class FastResidualQJLCache:
 
     def scores(self, queries: torch.Tensor) -> torch.Tensor:
         mse = (queries.float() @ self.rotation.T @ self.K.T) * self.Knorm
+        if not self.m:
+            return mse
         qjl = (math.sqrt(math.pi/2) / self.m) * (queries.float() @ self.S.T @ self.Rsign.T) * self.Rnorm
         return mse + qjl
 
@@ -85,4 +87,4 @@ class FastResidualQJLCache:
         return self.Vnorm.unsqueeze(1) * (self.V @ self.rotation)
 
     def key_storage_bytes(self) -> float:
-        return math.ceil(self.d * (self.key_bits - 1) / 8) + math.ceil(self.m / 8) + 8
+        return math.ceil(self.d * (self.key_bits - 1) / 8) + math.ceil(self.m / 8) + 4 + (4 if self.m else 0)

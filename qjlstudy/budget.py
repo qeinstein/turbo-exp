@@ -8,7 +8,7 @@ from collections import defaultdict
 def storage_bytes(d: int, key_bits: int, value_bits: int, m: int) -> dict[str, int]:
     key_scalar = math.ceil(d * (key_bits - 1) / 8)
     qjl_signs = math.ceil(m / 8)
-    key_metadata = 8  # original-key norm + residual norm, fp32 each
+    key_metadata = 4 + (4 if m else 0)  # original-key norm; residual norm only with QJL
     value_scalar = math.ceil(d * value_bits / 8)
     value_metadata = 4  # value norm, fp32
     return {
@@ -27,7 +27,7 @@ def enumerate_matched_configs(
     d: int,
     key_bits=(2, 3, 4, 5),
     value_bits=(1, 2, 3, 4),
-    ratios=(0.5, 1, 1.5, 2, 3, 4),
+    ratios=(0, 0.5, 1, 1.5, 2, 3, 4),
 ) -> list[dict]:
     candidates = []
     for kb in key_bits:

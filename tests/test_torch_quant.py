@@ -18,3 +18,13 @@ def test_m_changes_only_projection_shape_and_preserves_rotation():
     assert torch.equal(a.rotation, b.rotation)
     assert a.S.shape == (4, 8)
     assert b.S.shape == (16, 8)
+
+
+def test_m_zero_is_mse_only_and_has_no_projection():
+    cache = FastResidualQJLCache(8, 4, 2, layer=0, head=0, m=0, qjl_seed=11, device=torch.device("cpu"))
+    keys, values, queries = torch.randn(3, 8), torch.randn(3, 8), torch.randn(3, 8)
+    cache.encode(keys, values)
+    expected = (queries @ cache.rotation.T @ cache.K.T) * cache.Knorm
+    assert cache.S is None
+    assert cache.Rsign is None
+    assert torch.allclose(cache.scores(queries), expected)

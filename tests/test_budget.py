@@ -10,6 +10,10 @@ def test_known_exact_budget_match():
     more_key = storage_bytes(64, key_bits=5, value_bits=2, m=64)
     oversized_at_68 = storage_bytes(64, key_bits=4, value_bits=2, m=128)
     assert more_key["kv_bytes"] == oversized_at_68["kv_bytes"] == 68
+    mse_only = storage_bytes(64, key_bits=5, value_bits=2, m=0)
+    assert mse_only["kv_bytes"] == 56
+    assert mse_only["qjl_sign_bytes"] == 0
+    assert mse_only["key_metadata_bytes"] == 4
 
 
 def test_enumerator_only_keeps_groups_with_real_allocation_tradeoffs():

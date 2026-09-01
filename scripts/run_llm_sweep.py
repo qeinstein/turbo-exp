@@ -167,7 +167,7 @@ def main() -> None:
         del baseline
 
         for key_bits, value_bits, ratio in specs:
-            m = max(1, round(ratio * d))
+            m = max(0, round(ratio * d))
             for seed in args.qjl_seeds:
                 model = AutoModelForCausalLM.from_pretrained(model_name, **load_kwargs).to(device).eval()
                 _, layers = architecture(model)
@@ -213,10 +213,10 @@ def main() -> None:
                     "residual_norm_std": metric("residual_norm_std"),
                     "key_norm_mean": metric("key_norm_mean"),
                     "layer_metrics": layer_metrics,
-                    "qjl_sketch_bytes_per_key": math.ceil(m / 8) + 4,
-                    "key_storage_bytes_per_key": math.ceil(d * (key_bits - 1) / 8) + math.ceil(m / 8) + 8,
+                    "qjl_sketch_bytes_per_key": math.ceil(m / 8) + (4 if m else 0),
+                    "key_storage_bytes_per_key": math.ceil(d * (key_bits - 1) / 8) + math.ceil(m / 8) + 4 + (4 if m else 0),
                     "value_storage_bytes_per_value": math.ceil(d * value_bits / 8) + 4,
-                    "kv_storage_bytes_per_token": math.ceil(d * (key_bits - 1) / 8) + math.ceil(m / 8) + 8 + math.ceil(d * value_bits / 8) + 4,
+                    "kv_storage_bytes_per_token": math.ceil(d * (key_bits - 1) / 8) + math.ceil(m / 8) + 4 + (4 if m else 0) + math.ceil(d * value_bits / 8) + 4,
                     "shared_projection_bytes_per_layer_head": m * d * 4,
                     "shared_projection_bytes_total": num_layers * num_heads * m * d * 4,
                     "git_commit": git_hash(),
