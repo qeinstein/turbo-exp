@@ -40,17 +40,23 @@ def _codebook_cpu(d: int, bits: int) -> tuple[float, ...]:
     return tuple(float(x) for x in centers)
 
 
-def _seed(layer: int, head: int, qjl_seed: int) -> int:
-    return (layer + head) * (layer + head + 1) // 2 + head + 1000003 * qjl_seed
+def _rotation_seed(layer: int, head: int) -> int:
+    """Match the reference's collision-free layer/head rotation seed."""
+    return (layer + head) * (layer + head + 1) // 2 + head
+
+
+def _projection_seed(layer: int, head: int, qjl_seed: int) -> int:
+    """Vary only QJL randomness; qjl_seed=0 matches the reference projection."""
+    return _rotation_seed(layer, head) + 1 + 1000003 * qjl_seed
 
 
 class FastResidualQJLCache:
     def __init__(self, d: int, key_bits: int, val_bits: int, layer: int, head: int,
                  m: int, qjl_seed: int, device: torch.device):
         if m <= 0: raise ValueError("m must be positive")
-        seed = _seed(layer, head, qjl_seed)
-        self.rotation = _rotation(d, seed, device)
-        g = torch.Generator(device=device); g.manual_seed(seed + 1)
+        self.rotation = _rotation(d, _rotation_seed(layer, head), device)
+        g = torch.Generator(device=device)
+        g.manual_seed(_projection_seed(layer, head, qjl_seed))
         self.S = torch.randn(m, d, generator=g, device=device)
         self.key_cb = torch.tensor(_codebook_cpu(d, key_bits - 1), device=device)
         self.val_cb = torch.tensor(_codebook_cpu(d, val_bits), device=device)
