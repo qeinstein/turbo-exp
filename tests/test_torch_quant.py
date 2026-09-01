@@ -2,7 +2,7 @@ import pytest
 
 torch = pytest.importorskip("torch")
 
-from qjlstudy.torch_quant import FastResidualQJLCache
+from qjlstudy.torch_quant import FastResidualQJLCache, _projection
 
 
 def test_qjl_seed_does_not_change_rotation_but_changes_projection():
@@ -28,3 +28,11 @@ def test_m_zero_is_mse_only_and_has_no_projection():
     assert cache.S is None
     assert cache.Rsign is None
     assert torch.allclose(cache.scores(queries), expected)
+
+
+def test_block_orthogonal_projection_has_scaled_orthogonal_chunks():
+    projection = _projection(10, 4, 7, torch.device("cpu"), "block_orthogonal")
+    assert projection.shape == (10, 4)
+    for block in (projection[:4], projection[4:8]):
+        torch.testing.assert_close(block @ block.T, 4 * torch.eye(4), atol=1e-5, rtol=1e-5)
+    torch.testing.assert_close(projection[8:] @ projection[8:].T, 4 * torch.eye(2), atol=1e-5, rtol=1e-5)

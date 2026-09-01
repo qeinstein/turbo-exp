@@ -50,17 +50,33 @@ def _projection_seed(layer: int, head: int, qjl_seed: int) -> int:
     return _rotation_seed(layer, head) + 1 + 1000003 * qjl_seed
 
 
+def _projection(m: int, d: int, seed: int, device: torch.device, mode: str) -> torch.Tensor:
+    generator = torch.Generator(device=device)
+    generator.manual_seed(seed)
+    if mode == "gaussian":
+        return torch.randn(m, d, generator=generator, device=device)
+    if mode != "block_orthogonal":
+        raise ValueError(f"unknown projection mode: {mode}")
+    blocks = []
+    remaining = m
+    while remaining:
+        q, r = torch.linalg.qr(torch.randn(d, d, generator=generator, device=device))
+        q = q * torch.sign(torch.diag(r)).unsqueeze(0)
+        take = min(d, remaining)
+        blocks.append(math.sqrt(d) * q.T[:take])
+        remaining -= take
+    return torch.cat(blocks) if blocks else torch.empty((0, d), device=device)
+
+
 class FastResidualQJLCache:
     def __init__(self, d: int, key_bits: int, val_bits: int, layer: int, head: int,
-                 m: int, qjl_seed: int, device: torch.device):
+                 m: int, qjl_seed: int, device: torch.device, projection_mode: str = "gaussian"):
         if m < 0: raise ValueError("m must be non-negative")
         self.rotation = _rotation(d, _rotation_seed(layer, head), device)
-        g = torch.Generator(device=device)
-        g.manual_seed(_projection_seed(layer, head, qjl_seed))
-        self.S = torch.randn(m, d, generator=g, device=device) if m else None
+        self.S = _projection(m, d, _projection_seed(layer, head, qjl_seed), device, projection_mode) if m else None
         self.key_cb = torch.tensor(_codebook_cpu(d, key_bits - 1), device=device)
         self.val_cb = torch.tensor(_codebook_cpu(d, val_bits), device=device)
-        self.m, self.d, self.key_bits = m, d, key_bits
+        self.m, self.d, self.key_bits, self.projection_mode = m, d, key_bits, projection_mode
 
     def encode(self, keys: torch.Tensor, values: torch.Tensor) -> None:
         kn = torch.linalg.norm(keys.float(), dim=1, keepdim=True)

@@ -39,6 +39,7 @@ def main() -> None:
     p.add_argument("--token-offset", type=int, default=0)
     p.add_argument("--stride", type=int, default=256)
     p.add_argument("--study-id", default="exploratory")
+    p.add_argument("--projection-mode", choices=("gaussian", "block_orthogonal"), default="gaussian")
     p.add_argument("--quick", action="store_true")
     p.add_argument("--out", type=Path, default=Path("results/raw/llm_sweep.jsonl"))
     args = p.parse_args()
@@ -111,7 +112,7 @@ def main() -> None:
 
     def replace_gpt2(attn, layer, key_bits, value_bits, m, seed, collector):
         heads, d = attn.num_heads, attn.head_dim
-        caches = [FastResidualQJLCache(d, key_bits, value_bits, layer, h, m, seed, device) for h in range(heads)]
+        caches = [FastResidualQJLCache(d, key_bits, value_bits, layer, h, m, seed, device, args.projection_mode) for h in range(heads)]
 
         def forward(hidden_states, **kwargs):
             batch, seq, _ = hidden_states.shape
@@ -127,7 +128,7 @@ def main() -> None:
 
     def replace_opt(attn, layer, key_bits, value_bits, m, seed, collector):
         heads, d = attn.num_heads, attn.head_dim
-        caches = [FastResidualQJLCache(d, key_bits, value_bits, layer, h, m, seed, device) for h in range(heads)]
+        caches = [FastResidualQJLCache(d, key_bits, value_bits, layer, h, m, seed, device, args.projection_mode) for h in range(heads)]
 
         def forward(hidden_states, **kwargs):
             batch, seq, _ = hidden_states.shape
@@ -194,6 +195,7 @@ def main() -> None:
                     "context_length": 1024,
                     "model_dtype": str(model_dtype).replace("torch.", ""),
                     "device": device.type,
+                    "projection_mode": args.projection_mode,
                     "key_bits": key_bits,
                     "value_bits": value_bits,
                     "d": d,
