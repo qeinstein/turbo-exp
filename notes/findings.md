@@ -27,6 +27,11 @@ not claims of novelty or broad model generality.
   3/2 bits while also using 12 extra bytes/token. Raising `m` reduces this
   estimator-induced attention divergence, but spending the storage on scalar
   precision is more effective in these tests.
+- Replacing Gaussian projections with independent block-orthogonal projection
+  blocks substantially reduces QJL error and PPL, so projection structure is a
+  real implementation sensitivity. It does not alter the fixed-budget result:
+  all four tested orthogonal-QJL points at 3/2 or 4/2 bits and `m in {d,2d}`
+  remain worse than an MSE-only allocation using four fewer bytes per token.
 
 The fixed-budget finding is a falsification of the candidate paper hypothesis,
 not evidence that QJL is universally inferior across models or implementations.

@@ -274,12 +274,62 @@ def mechanism_summary(fine: list[dict], layers: list[dict], budget: list[dict]) 
     return output
 
 
+def projection_control_summary(
+    block_rows: list[dict], fine: list[dict], budget: list[dict]
+) -> list[dict]:
+    """Keep the post-gate projection control separate from the Gaussian study."""
+    selected: list[dict] = []
+    for record in fine:
+        if record["key_bits"] in (3, 4) and record["value_bits"] == 2 and record["m_over_d"] in (1.0, 2.0):
+            current = dict(record)
+            current["projection_mode"] = "gaussian"
+            selected.append(current)
+    for record in summarize(block_rows):
+        current = dict(record)
+        current["projection_mode"] = "block_orthogonal"
+        selected.append(current)
+
+    mse_only = [record for record in budget if record["m_over_d"] == 0]
+    output = []
+    for record in sorted(
+        selected,
+        key=lambda item: (item["key_bits"], item["m_over_d"], item["projection_mode"]),
+    ):
+        comparator = min(
+            (candidate for candidate in mse_only if candidate["kv_bytes"] <= record["kv_bytes"]),
+            key=lambda candidate: candidate["perplexity_mean"],
+        )
+        output.append(
+            {
+                "projection_mode": record["projection_mode"],
+                "key_bits": record["key_bits"],
+                "value_bits": record["value_bits"],
+                "m_over_d": record["m_over_d"],
+                "kv_bytes": record["kv_bytes"],
+                "perplexity_mean": record["perplexity_mean"],
+                "perplexity_sd": record["perplexity_sd"],
+                "attention_logit_rmse_mean": record["attention_logit_rmse_mean"],
+                "attention_kl_mean": record["attention_kl_fp_to_quantized_mean"],
+                "best_mse_only_at_or_below_budget": (
+                    f"{comparator['key_bits']}/{comparator['value_bits']}"
+                ),
+                "best_mse_only_bytes": comparator["kv_bytes"],
+                "best_mse_only_ppl": comparator["perplexity_mean"],
+                "ppl_above_best_mse_only": (
+                    record["perplexity_mean"] - comparator["perplexity_mean"]
+                ),
+            }
+        )
+    return output
+
+
 def plot_results(
     budget: list[dict],
     fine: list[dict],
     ppl_frontier: list[dict],
     error_frontier: list[dict],
     layers: list[dict],
+    projection_control: list[dict],
 ) -> None:
     import matplotlib.pyplot as plt
 
@@ -358,6 +408,46 @@ def plot_results(
     fig.savefig(PLOTS / "phase2_fine_m_seed_variance.png", dpi=180)
     plt.close(fig)
 
+    fig, axes = plt.subplots(1, 2, figsize=(10.5, 4.0), sharey=False)
+    for axis, key_bits in zip(axes, (4, 3)):
+        records = [record for record in projection_control if record["key_bits"] == key_bits]
+        for mode, color, marker, label in (
+            ("gaussian", "#dc2626", "o", "Gaussian QJL"),
+            ("block_orthogonal", "#2563eb", "s", "Block-orthogonal QJL"),
+        ):
+            mode_records = sorted(
+                [record for record in records if record["projection_mode"] == mode],
+                key=lambda record: record["m_over_d"],
+            )
+            axis.errorbar(
+                [record["m_over_d"] for record in mode_records],
+                [record["perplexity_mean"] for record in mode_records],
+                yerr=[record["perplexity_sd"] for record in mode_records],
+                color=color,
+                marker=marker,
+                label=label,
+            )
+        block_records = sorted(
+            [record for record in records if record["projection_mode"] == "block_orthogonal"],
+            key=lambda record: record["m_over_d"],
+        )
+        axis.plot(
+            [record["m_over_d"] for record in block_records],
+            [record["best_mse_only_ppl"] for record in block_records],
+            color="#111827",
+            linestyle="--",
+            marker="X",
+            label="Best MSE-only at <= bytes",
+        )
+        axis.set_title(f"{key_bits}/2-bit QJL")
+        axis.set_xlabel("m/d")
+        axis.set_ylabel("Perplexity")
+        axis.grid(alpha=0.2)
+    axes[0].legend(fontsize=8)
+    fig.tight_layout()
+    fig.savefig(PLOTS / "phase2_projection_control.png", dpi=180)
+    plt.close(fig)
+
 
 def main() -> None:
     equal_rows = (
@@ -367,6 +457,7 @@ def main() -> None:
         + read_jsonl("phase2_high_scalar.jsonl")
     )
     fine_rows = read_jsonl("phase2_fine_m.jsonl")
+    block_rows = read_jsonl("phase2_block_orthogonal.jsonl")
     budget_summary = summarize(equal_rows)
     fine_summary = add_fine_metrics(summarize(fine_rows))
 
@@ -398,6 +489,7 @@ def main() -> None:
     ]
     layers = layer_summary(rows_by_config)
     mechanisms = mechanism_summary(fine_summary, layers, budget_summary)
+    projection_control = projection_control_summary(block_rows, fine_summary, budget_summary)
 
     SUMMARY.mkdir(parents=True, exist_ok=True)
     artifacts = {
@@ -409,15 +501,24 @@ def main() -> None:
         "phase2_comparisons": comparisons,
         "phase2_layer_summary": layers,
         "phase2_mechanism_summary": mechanisms,
+        "phase2_projection_control": projection_control,
     }
     for name, records in artifacts.items():
         (SUMMARY / f"{name}.json").write_text(json.dumps(records, indent=2) + "\n")
         write_csv(SUMMARY / f"{name}.csv", records)
 
-    plot_results(budget_summary, fine_summary, ppl_frontier, error_frontier, layers)
+    plot_results(
+        budget_summary,
+        fine_summary,
+        ppl_frontier,
+        error_frontier,
+        layers,
+        projection_control,
+    )
     print(
         f"summarized {len(equal_rows)} equal-budget runs ({len(budget_summary)} configs), "
-        f"{len(fine_rows)} fine-sweep runs ({len(fine_summary)} configs)"
+        f"{len(fine_rows)} fine-sweep runs ({len(fine_summary)} configs), and "
+        f"{len(block_rows)} block-orthogonal control runs"
     )
 
 

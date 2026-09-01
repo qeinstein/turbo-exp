@@ -105,3 +105,25 @@
   the MSE-only fixed-budget controls show it characterizes how many measurements
   are needed to make QJL non-harmful, not an allocation rule that improves the
   quality-memory frontier.
+
+## 2026-09-01 — block-orthogonal projection sensitivity control
+
+- Hypothesis: the negative fixed-budget result could be an artifact of the
+  independent Gaussian projection used by TurboQuant rather than the
+  block-orthogonal construction in the public QJL implementation.
+- Exact setup: GPT-2/WikiText-2 first 512 tokens, five seeds, 3/2- and 4/2-bit
+  quantization, `m/d in {1, 2}`, with independent scaled Haar-orthogonal blocks
+  of `d` rows. All other settings match the confirmatory Gaussian runs. Raw
+  records are `results/raw/phase2_block_orthogonal.jsonl`.
+- Result: orthogonalization materially improved QJL. At 4/2 bits, mean PPL was
+  36.95 +/- 0.59 at `m=d` and 34.87 +/- 0.62 at `m=2d`, versus Gaussian means
+  45.16 and 37.84. At 3/2 bits, the corresponding orthogonal means were 49.16
+  +/- 2.28 and 39.84 +/- 0.72, versus 92.29 and 54.43 for Gaussian QJL.
+- Fixed-budget result: every orthogonal-QJL point remained dominated by an
+  MSE-only allocation using no more storage. The closest cases were 4/2,
+  `m=d` at 60 bytes/token (36.95 PPL) versus MSE-only 5/2 at 56 bytes (35.01),
+  and 4/2, `m=2d` at 68 bytes (34.87) versus MSE-only 5/3 at 64 bytes (32.83).
+- Interpretation: projection structure is a major quantitative confounder, but
+  it does not reverse the preregistered fixed-budget stop decision. Claims in
+  the final report must distinguish the Gaussian primary sweep from this
+  stronger post-gate implementation control.
