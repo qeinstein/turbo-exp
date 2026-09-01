@@ -281,6 +281,9 @@ research direction or larger-model spending.
 
 ## Repository map
 
+- [FUTURE_DIRECTIONS.md](FUTURE_DIRECTIONS.md): the narrowly reformulated
+  residual-correction boundary question, minimal validation gate, and explicit
+  success/stop criteria.
 - [PHASE2_VALIDATION.md](PHASE2_VALIDATION.md): final decision document.
 - [INITIAL_STUDY.md](INITIAL_STUDY.md): preliminary replication that originally
   passed the first gate.
